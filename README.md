@@ -1,4 +1,4 @@
-*** Smartwaiver + RevelPOS integration
+### Smartwaiver + RevelPOS integration
 
 1. Webhook fires from smartaiver everytime a user signs up, POSTs a unique_id to our heroku endpoint.  
 2. we then query smartwaiver back with this unique_id to get the user's data
