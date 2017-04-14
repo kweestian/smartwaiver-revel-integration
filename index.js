@@ -29,6 +29,36 @@ var mandrill_client = new mandrill.Mandrill(process.env.MANDRILL_API_WEALTH);
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 
+app.get('/', function(req, res) {
+  res.send(req.body);
+});
+
+app.get('/subscribeToMailChimp', function(req, res) {
+  var email = decodeURIComponent(req.query.email);
+  var firstname = decodeURIComponent(req.query.firstname);
+  var lastname = decodeURIComponent(req.query.lastname);
+  var dob = req.query.dob;
+
+  mailchimp.post('lists/c1248e56b2/members', {
+    email_address: email,
+    status: 'subscribed',
+    merge_fields: {
+      FNAME: firstname,
+      LNAME: lastname,
+      MMERGE6: dob
+    }
+  })
+  .then(function(response) {
+    if (response.statusCode === 200) {
+      res.redirect('https://wealthshop.us11.list-manage.com/subscribe/confirm?u=bac2b553f93cc20899dedd7df&id=c1248e56b2&e=19ef776399');
+    }
+  })
+  .catch(function(err) {
+    console.log(err);
+    res.status(404).end();
+  })
+})
+
 app.post('/', function(req, res) {
 
   var credential = req.body.credential;
@@ -84,17 +114,17 @@ app.post('/', function(req, res) {
     })
     .then(function(user) {
 
-      // add to mailchimp via mandrill template if clicked "add me to email list" in smartwaiver form
-      var sendOptin = !JSON.parse(user.marketingallowed);
+      // if they opted out of marketting, they get an Are you Sure ? email
+      var sendOptOut = !JSON.parse(user.marketingallowed);
 
-      var fullUrl = req.get('host') + '/suscribeToMC?email=' + encodeURIComponent(user.primary_email) + '&firstname=' + encodeURIComponent(user.firstname) + '&lastname=' + encodeURIComponent(user.lastname) + '&dob=' + user.dob;
+      var fullUrl = req.get('host') + '/subscribeToMailChimp?email=' + encodeURIComponent(user.primary_email) + '&firstname=' + encodeURIComponent(user.firstname) + '&lastname=' + encodeURIComponent(user.lastname) + '&dob=' + user.dob;
 
-      if (sendOptin) {
+      if (sendOptOut) {
 
         var template_name = "opt-out-capture";
         var template_content = [{
           "name": "subscribe",
-          "content": "If this is a mistake, you can <a href=" + fullUrl + ">subscribe here</a>"
+          "content": "You have chosen not to subscribe to our beautiful email list, If this is a mistake, you can <a href=" + fullUrl + ">subscribe here</a>"
         }];
         var message = {
           "to": [{
@@ -112,8 +142,6 @@ app.post('/', function(req, res) {
               "opt-out-capture"
           ]
         };
-
-        // var sendAt = moment.utc().add(30, 'seconds');
 
         mandrill_client.messages.sendTemplate({"template_name": template_name, "template_content": template_content, "message": message}, function(result) {
           console.log(result);
